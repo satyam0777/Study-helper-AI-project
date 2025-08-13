@@ -1,7 +1,9 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
+import openai from '../config/openai';
 
-import { askGemini } from '../config/openai';
+
+
 import Chat from '../models/Chat';
 import User from '../models/User';
 import { generateQuiz } from '../utils/generateQuiz';
@@ -11,395 +13,98 @@ import { generateFlashcards } from '../utils/flashcards';
 import { aiValidation } from '../utils/validation';
 
 
-// export const askQuestion = async (req: AuthRequest, res: Response) => {
-//     try {
-//     const { error, value } = aiValidation.askQuestion.validate(req.body);
-//     if (error) {
-//       return res.status(400).json({ error: error.details[0].message });
-//     }
-
-//     const { question, context, sessionId } = value;
-//     const userId = req.user!._id;
-
-//     // Check usage limits for free users
-//     const user = await User.findById(userId);
-//     if (user!.subscription.plan === 'free' && user!.subscription.usage.aiQueries >= 50) {
-//       return res.status(429).json({ 
-//         error: 'Daily query limit reached. Upgrade to premium for unlimited queries.',
-//         upgradeUrl: '/api/auth/upgrade'
-//       });
-//     }
-
-//     const startTime = Date.now();
-
-//     // Build conversation context
-//     let messages: any[] = [
-//       {
-//         role: "system",
-//         content: `You are a helpful AI study assistant. Your personality is ${user!.profile.preferences.aiPersonality}. 
-//                  Adjust your responses to ${user!.profile.preferences.difficultyLevel} level.
-//                  Be encouraging and educational in your responses.`
-//       }
-//     ];
-
-//     if (context) {
-//       messages.push({
-//         role: "system",
-//         content: `Additional context: ${context}`
-//       });
-//     }
-
-//     messages.push({
-//       role: "user",
-//       content: question
-//     });
-
-//     const completion = await openai.chat.completions.create({
-//       model: "gpt-3.5-turbo",
-//       messages,
-//       temperature: 0.7,
-//       max_tokens: 1000
-//     });
-
-//     const answer = completion.choices[0].message.content;
-//     const responseTime = Date.now() - startTime;
-
-//     // Save to database
-//     const chat = new Chat({
-//       userId,
-//       sessionId,
-//       type: 'question',
-//       input: { text: question },
-//       output: { text: answer },
-//       metadata: {
-//         model: 'gpt-3.5-turbo',
-//         tokensUsed: completion.usage?.total_tokens,
-//         responseTime
-//       }
-//     });
-
-//     await chat.save();
-
-//     // Update user usage
-//     await User.findByIdAndUpdate(userId, {
-//       $inc: { 'subscription.usage.aiQueries': 1 }
-//     });
-
-//     res.json({
-//       success: true,
-//       data: {
-//         answer,
-//         chatId: chat._id,
-//         tokensUsed: completion.usage?.total_tokens,
-//         responseTime
-//       }
-//     });
-
-//   } catch (error) {
-//     if (
-//       typeof error === 'object' &&
-//       error !== null &&
-//       'status' in error &&
-//       (error as any).status === 429
-//     ) {
-//       console.log('Rate limit exceeded. Check your OpenAI billing.');
-//       return res.status(429).json({ 
-//         error: 'API quota exceeded. Please try again later.' 
-//       });
-//     }
-//     // Optionally handle other errors
-//     console.error('Error in askQuestion:', error);
-//     return res.status(500).json({ error: 'Failed to process question' });
-//   }
- 
-// };
-
-// export const askQuestion = async (req: AuthRequest, res: Response) => {
-//     try {
-//         // 1. Validate input
-//         const { error, value } = aiValidation.askQuestion.validate(req.body);
-//         if (error) {
-//             return res.status(400).json({ error: error.details[0].message });
-//         }
-
-//         const { question, context, sessionId } = value;
-//         const userId = req.user!._id;
-
-//         // 2. Check user exists and usage limits
-//         const user = await User.findById(userId);
-//         if (!user) {
-//             return res.status(404).json({ error: 'User not found' });
-//         }
-
-//         if (user.subscription.plan === 'free' && user.subscription.usage.aiQueries >= 50) {
-//             return res.status(429).json({ 
-//                 error: 'Daily query limit reached. Upgrade to premium for unlimited queries.',
-//                 upgradeUrl: '/api/auth/upgrade'
-//             });
-//         }
-
-//         const startTime = Date.now();
-
-//         // 3. Generate mock response instead of calling OpenAI
-//         const mockResponses = [
-//             "That's an interesting question about: " + question,
-//             "I'd be happy to help with: " + question,
-//             "Let me think about: " + question,
-//             "Here's what I know about: " + question
-//         ];
-        
-//         const answer = mockResponses[Math.floor(Math.random() * mockResponses.length)];
-//         const responseTime = Date.now() - startTime;
-
-//         // 4. Save to database (maintaining all functionality)
-//         const chat = new Chat({
-//             userId,
-//             sessionId,
-//             type: 'question',
-//             input: { text: question },
-//             output: { text: answer },
-//             metadata: {
-//                 model: 'mock-service',
-//                 tokensUsed: question.length + answer.length, // Mock token count
-//                 responseTime
-//             }
-//         });
-
-//         await chat.save();
-
-//         // 5. Update user usage
-//         await User.findByIdAndUpdate(userId, {
-//             $inc: { 'subscription.usage.aiQueries': 1 }
-//         });
-
-//         // 6. Return success response
-//         return res.json({
-//             success: true,
-//             data: {
-//                 answer,
-//                 chatId: chat._id,
-//                 tokensUsed: question.length + answer.length,
-//                 responseTime,
-//                 mock: true // Indicates this is a mock response
-//             }
-//         });
-
-//     } catch (error) {
-//         console.error('Error in askQuestion:', error);
-//         return res.status(500).json({ 
-//             error: 'Failed to process question',
-//             details: process.env.NODE_ENV === 'development' && error && typeof error === 'object' && 'message' in error
-//                 ? (error as { message: string }).message
-//                 : undefined
-//         });
-//     }
-// };
-// export const askQuestion = async (req: AuthRequest, res: Response) => {
-//   try {
-//     // Validate input
-//     const { error, value } = aiValidation.askQuestion.validate(req.body);
-//     if (error) {
-//       return res.status(400).json({ error: error.details[0].message });
-//     }
-
-//     const { question, context, sessionId } = value;
-//     const userId = req.user!._id;
-
-//     // Fetch user from database
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       return res.status(404).json({ error: 'User not found' });
-//     }
-
-//     const completion = await openai.chat.completions.create({
-//       model: "gpt-3.5-turbo",
-//       messages: [
-//         {
-//           role: "system",
-//           content: `You are a ${user.profile.preferences.aiPersonality} tutor. 
-//                    Teach at ${user.profile.preferences.difficultyLevel} level.`
-//         },
-//         { role: "user", content: question }
-//       ],
-//       temperature: 0.7,
-//       max_tokens: 1000
-//     });
-
-//     const answer = completion.choices[0].message.content;
-    
-//     // Rest of your database and response logic
-//     res.json({
-//       success: true,
-//       data: {
-//         answer,
-//         tokensUsed: completion.usage?.total_tokens
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('OpenAI Error:', error);
-//     res.status(500).json({ 
-//       error: 'AI service error',
-//       details: error instanceof Error ? error.message : String(error)
-//     });
-//   }
-// };
-
-
-// export const askQuestion = async (req: AuthRequest, res: Response) => {
-//   try {
-//     const { error, value } = aiValidation.askQuestion.validate(req.body);
-//     if (error) {
-//       return res.status(400).json({ error: error.details[0].message });
-//     }
-
-//     const { question, context, sessionId } = value;
-//     const userId = req.user!._id;
-
-//     // Check usage limits for free users
-//     const user = await User.findById(userId);
-//     if (user!.subscription.plan === 'free' && user!.subscription.usage.aiQueries >= 50) {
-//       return res.status(429).json({ 
-//         error: 'Daily query limit reached. Upgrade to premium for unlimited queries.',
-//         upgradeUrl: '/api/auth/upgrade'
-//       });
-//     }
-
-//     const startTime = Date.now();
-//     let answer: string;
-//     let tokensUsed = 0;
-
-//     // Use mock response if OpenAI is not available
-//     if (shouldUseMock()) {
-//       console.log('Using mock AI response for development');
-//       const mockResponse = mockAIResponses.askQuestion(question);
-//       answer = mockResponse.answer;
-//       tokensUsed = 50; // Mock token count
-//     } else {
-//       try {
-//         // Build conversation context
-//         let messages: any[] = [
-//           {
-//             role: "system",
-//             content: `You are a helpful AI study assistant. Your personality is ${user!.profile.preferences.aiPersonality}. 
-//                      Adjust your responses to ${user!.profile.preferences.difficultyLevel} level.
-//                      Be encouraging and educational in your responses.`
-//           }
-//         ];
-
-//         if (context) {
-//           messages.push({
-//             role: "system",
-//             content: `Additional context: ${context}`
-//           });
-//         }
-
-//         messages.push({
-//           role: "user",
-//           content: question
-//         });
-
-//         const completion = await openai.chat.completions.create({
-//           model: "gpt-3.5-turbo",
-//           messages,
-//           temperature: 0.7,
-//           max_tokens: 1000
-//         });
-
-//         answer = completion.choices[0].message.content || 'No response generated';
-//         tokensUsed = completion.usage?.total_tokens || 0;
-//       } catch (openaiError: any) {
-//         console.error('OpenAI API Error:', openaiError.message);
-        
-//         // If OpenAI fails, fall back to mock response
-//         console.log('Falling back to mock response due to OpenAI error');
-//         const mockResponse = mockAIResponses.askQuestion(question);
-//         answer = `[Development Mode] ${mockResponse.answer}`;
-//         tokensUsed = 50;
-//       }
-//     }
-
-//     const responseTime = Date.now() - startTime;
-
-//     // Save to database
-//     const chat = new Chat({
-//       userId,
-//       sessionId,
-//       type: 'question',
-//       input: { text: question },
-//       output: { text: answer },
-//       metadata: {
-//         model: shouldUseMock() ? 'mock-gpt' : 'gpt-3.5-turbo',
-//         tokensUsed,
-//         responseTime
-//       }
-//     });
-
-//     await chat.save();
-
-//     // Update user usage
-//     await User.findByIdAndUpdate(userId, {
-//       $inc: { 'subscription.usage.aiQueries': 1 }
-//     });
-
-//     res.json({
-//       success: true,
-//       data: {
-//         answer,
-//         chatId: chat._id,
-//         tokensUsed,
-//         responseTime,
-//         usingMock: shouldUseMock()
-//       }
-//     });
-//   } catch (error) {
-//     console.error('Error in askQuestion:', error);
-//     res.status(500).json({ error: 'Failed to process question' });
-//   }
-// };
-
-// In your aiController.ts
-const isDevelopment = process.env.NODE_ENV === 'development';
-
 export const askQuestion = async (req: AuthRequest, res: Response) => {
-  try {
-    const { question, subject, context } = req.body;
-    
-    if (!question) {
-      return res.status(400).json({ 
-        error: 'Question is required', 
-        success: false 
+    try {
+    const { error, value } = aiValidation.askQuestion.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const { question, context, sessionId } = value;
+    const userId = req.user!._id;
+
+    // Check usage limits for free users
+    const user = await User.findById(userId);
+    if (user!.subscription.plan === 'free' && user!.subscription.usage.aiQueries >= 50) {
+      return res.status(429).json({ 
+        error: 'Daily query limit reached. Upgrade to premium for unlimited queries.',
+        upgradeUrl: '/api/auth/upgrade'
       });
     }
 
-    if (isDevelopment && process.env.MOCK_AI === 'true') {
-      return res.json({
-        answer: `Mock answer for: "${question}" in ${subject || 'general'} subject.`,
-        success: true
-      });
-    }
-    
-    // Build the system message based on subject
-    let systemMessage = "You are a helpful study assistant. Provide clear, educational answers.";
-    
-    if (subject) {
-      systemMessage += ` Focus on ${subject} topics.`;
-    }
-    
+    const startTime = Date.now();
+
+    // Build conversation context
+    let messages: any[] = [
+      {
+        role: "system",
+        content: `You are a helpful AI study assistant. Your personality is ${user!.profile.preferences.aiPersonality}. 
+                 Adjust your responses to ${user!.profile.preferences.difficultyLevel} level.
+                 Be encouraging and educational in your responses.`
+      }
+    ];
+
     if (context) {
-      systemMessage += ` Context: ${context}`;
+      messages.push({
+        role: "system",
+        content: `Additional context: ${context}`
+      });
     }
 
-    const answer = await askGemini(question);
-
-    res.json({ 
-      answer, 
-      success: true
+    messages.push({
+      role: "user",
+      content: question
     });
-    
+
+    // const completion = await openai.chat.completions.create({
+    //   model: "gpt-3.5-turbo",
+    //   messages,
+    //   temperature: 0.7,
+    //   max_tokens: 1000
+    // });
+    const completion = await openai.chat.completions.create({
+  model: "gpt-3.5-turbo",
+  messages,
+  temperature: 0.7,
+  max_tokens: 1000
+});
+
+
+    const answer = completion.choices[0].message.content;
+    const responseTime = Date.now() - startTime;
+
+    // Save to database
+    const chat = new Chat({
+      userId,
+      sessionId,
+      type: 'question',
+      input: { text: question },
+      output: { text: answer },
+      metadata: {
+        model: 'gpt-3.5-turbo',
+        tokensUsed: completion.usage?.total_tokens,
+        responseTime
+      }
+    });
+
+    await chat.save();
+
+    // Update user usage
+    await User.findByIdAndUpdate(userId, {
+      $inc: { 'subscription.usage.aiQueries': 1 }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        answer,
+        chatId: chat._id,
+        tokensUsed: completion.usage?.total_tokens,
+        responseTime
+      }
+    });
+
   } catch (error) {
-    console.error('Error in askQuestion:', error);
-    
     if (
       typeof error === 'object' &&
       error !== null &&
@@ -408,29 +113,17 @@ export const askQuestion = async (req: AuthRequest, res: Response) => {
     ) {
       console.log('Rate limit exceeded. Check your OpenAI billing.');
       return res.status(429).json({ 
-        error: 'API quota exceeded. Please try again later.',
-        success: false 
+        error: 'API quota exceeded. Please try again later.' 
       });
     }
-    
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'status' in error &&
-      (error as any).status === 401
-    ) {
-      return res.status(401).json({
-        error: 'Invalid API key',
-        success: false
-      });
-    }
-    
-    res.status(500).json({ 
-      error: 'Internal server error', 
-      success: false 
-    });
+    // Optionally handle other errors
+    console.error('Error in askQuestion:', error);
+    return res.status(500).json({ error: 'Failed to process question' });
   }
+ 
 };
+
+
 export const createQuiz = async (req: AuthRequest, res: Response) => {
   try {
     const { error, value } = aiValidation.generateQuiz.validate(req.body);
@@ -605,14 +298,7 @@ export const createFlashcards = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// function shouldUseMock() {
-//   // Use mock if NODE_ENV is 'development' or if OPENAI_API_KEY is missing
-//   return (
-//     process.env.NODE_ENV === 'development' ||
-//     !process.env.OPENAI_API_KEY
-//   );
-// }
 
-// function shouldUseMock() {
-//   throw new Error('Function not implemented.');
-// }
+  // function OPENAI_API_KEY(question: any) {
+  //   throw new Error('Function not implemented.');
+  // }
