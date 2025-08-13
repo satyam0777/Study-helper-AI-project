@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateToken, checkSubscription } from '../middlewares/authMiddleware';
 import { aiLimiter } from '../middlewares/rateLimiter';
+import openai from '../config/openai';
 import {
   askQuestion,
   createQuiz,
@@ -19,7 +20,27 @@ router.use(aiLimiter);
 
 // AI Chat endpoints
 
-router.post('/ask', askQuestion);
+// router.post('/ask', askQuestion);
+// router.post('/ask', (req, res) => {
+//   console.log('AI /ask endpoint hit');
+//   res.json({ test: true });
+// });
+router.post('/ask', async (req, res) => {
+  try {
+    const { question } = req.body;
+
+    // Call your OpenAI API here
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: question }],
+    });
+
+    res.json({ answer: completion.choices[0].message.content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+});
 
 router.post('/summary', createSummary);
 router.post('/quiz', createQuiz);
