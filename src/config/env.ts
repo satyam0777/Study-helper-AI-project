@@ -12,7 +12,8 @@ const envSchema = z.object({
   MONGODB_URI: z.string().min(1),
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().default('7d'),
-  OPENAI_API_KEY: z.string().min(1),
+  // OPENAI_API_KEY: z.string().min(1),
+    GEMINI_API_KEY: z.string(),
   MAX_FILE_SIZE: z.string().default('10485760'), // 10MB
   UPLOAD_DIR: z.string().default('./uploads'),
   RATE_LIMIT_WINDOW_MS: z.string().default('900000'), // 15 minutes

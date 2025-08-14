@@ -1,17 +1,8 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
 
-// import OpenAI from 'openai';
-// import {env} from './env'; 
-
-// if (!env.OPENAI_API_KEY) {
-//   throw new Error('OPENAI_API_KEY is not defined in environment variables');
-// }
-
-// const openai = new OpenAI({
-//   apiKey: env.OPENAI_API_KEY,
-// });
-
-// export default openai;
+export default genAI;
 
 
 // import { GoogleGenerativeAI } from '@google/generative-ai';
