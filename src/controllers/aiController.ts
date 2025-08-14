@@ -1,6 +1,9 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
-import openai from '../config/openai';
+// import openai from '../config/openai';
+// import  genAI  from '../config/gemini';
+
+
 
 
 
@@ -13,115 +16,150 @@ import { generateFlashcards } from '../utils/flashcards';
 import { aiValidation } from '../utils/validation';
 
 
-export const askQuestion = async (req: AuthRequest, res: Response) => {
-    try {
-    const { error, value } = aiValidation.askQuestion.validate(req.body);
-    if (error) {
-      return res.status(400).json({ error: error.details[0].message });
-    }
+// export const askQuestion = async (req: AuthRequest, res: Response) => {
+//     try {
+//     const { error, value } = aiValidation.askQuestion.validate(req.body);
+//     if (error) {
+//       return res.status(400).json({ error: error.details[0].message });
+//     }
 
-    const { question, context, sessionId } = value;
-    const userId = req.user!._id;
+//     const { question, context, sessionId } = value;
+//     const userId = req.user!._id;
 
-    // Check usage limits for free users
-    const user = await User.findById(userId);
-    if (user!.subscription.plan === 'free' && user!.subscription.usage.aiQueries >= 50) {
-      return res.status(429).json({ 
-        error: 'Daily query limit reached. Upgrade to premium for unlimited queries.',
-        upgradeUrl: '/api/auth/upgrade'
-      });
-    }
+//     // Check usage limits for free users
+//     const user = await User.findById(userId);
+//     if (user!.subscription.plan === 'free' && user!.subscription.usage.aiQueries >= 50) {
+//       return res.status(429).json({ 
+//         error: 'Daily query limit reached. Upgrade to premium for unlimited queries.',
+//         upgradeUrl: '/api/auth/upgrade'
+//       });
+//     }
 
-    const startTime = Date.now();
+//     const startTime = Date.now();
 
-    // Build conversation context
-    let messages: any[] = [
-      {
-        role: "system",
-        content: `You are a helpful AI study assistant. Your personality is ${user!.profile.preferences.aiPersonality}. 
-                 Adjust your responses to ${user!.profile.preferences.difficultyLevel} level.
-                 Be encouraging and educational in your responses.`
-      }
-    ];
+//     // Build conversation context
+//     let messages: any[] = [
+//       {
+//         role: "system",
+//         content: `You are a helpful AI study assistant. Your personality is ${user!.profile.preferences.aiPersonality}. 
+//                  Adjust your responses to ${user!.profile.preferences.difficultyLevel} level.
+//                  Be encouraging and educational in your responses.`
+//       }
+//     ];
 
-    if (context) {
-      messages.push({
-        role: "system",
-        content: `Additional context: ${context}`
-      });
-    }
+//     if (context) {
+//       messages.push({
+//         role: "system",
+//         content: `Additional context: ${context}`
+//       });
+//     }
 
-    messages.push({
-      role: "user",
-      content: question
-    });
+//     messages.push({
+//       role: "user",
+//       content: question
+//     });
 
-    // const completion = await openai.chat.completions.create({
-    //   model: "gpt-3.5-turbo",
-    //   messages,
-    //   temperature: 0.7,
-    //   max_tokens: 1000
-    // });
-    const completion = await openai.chat.completions.create({
-  model: "gpt-3.5-turbo",
-  messages,
-  temperature: 0.7,
-  max_tokens: 1000
-});
+//     // const completion = await openai.chat.completions.create({
+//     //   model: "gpt-3.5-turbo",
+//     //   messages,
+//     //   temperature: 0.7,
+//     //   max_tokens: 1000
+//     // });
+//     const completion = await openai.chat.completions.create({
+//   model: "gpt-3.5-turbo",
+//   messages,
+//   temperature: 0.7,
+//   max_tokens: 1000
+// });
 
 
-    const answer = completion.choices[0].message.content;
-    const responseTime = Date.now() - startTime;
+//     const answer = completion.choices[0].message.content;
+//     const responseTime = Date.now() - startTime;
 
-    // Save to database
-    const chat = new Chat({
-      userId,
-      sessionId,
-      type: 'question',
-      input: { text: question },
-      output: { text: answer },
-      metadata: {
-        model: 'gpt-3.5-turbo',
-        tokensUsed: completion.usage?.total_tokens,
-        responseTime
-      }
-    });
+//     // Save to database
+//     const chat = new Chat({
+//       userId,
+//       sessionId,
+//       type: 'question',
+//       input: { text: question },
+//       output: { text: answer },
+//       metadata: {
+//         model: 'gpt-3.5-turbo',
+//         tokensUsed: completion.usage?.total_tokens,
+//         responseTime
+//       }
+//     });
 
-    await chat.save();
+//     await chat.save();
 
-    // Update user usage
-    await User.findByIdAndUpdate(userId, {
-      $inc: { 'subscription.usage.aiQueries': 1 }
-    });
+//     // Update user usage
+//     await User.findByIdAndUpdate(userId, {
+//       $inc: { 'subscription.usage.aiQueries': 1 }
+//     });
 
-    res.json({
-      success: true,
-      data: {
-        answer,
-        chatId: chat._id,
-        tokensUsed: completion.usage?.total_tokens,
-        responseTime
-      }
-    });
+//     res.json({
+//       success: true,
+//       data: {
+//         answer,
+//         chatId: chat._id,
+//         tokensUsed: completion.usage?.total_tokens,
+//         responseTime
+//       }
+//     });
 
-  } catch (error) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'status' in error &&
-      (error as any).status === 429
-    ) {
-      console.log('Rate limit exceeded. Check your OpenAI billing.');
-      return res.status(429).json({ 
-        error: 'API quota exceeded. Please try again later.' 
-      });
-    }
-    // Optionally handle other errors
-    console.error('Error in askQuestion:', error);
-    return res.status(500).json({ error: 'Failed to process question' });
-  }
+//   } catch (error) {
+//     if (
+//       typeof error === 'object' &&
+//       error !== null &&
+//       'status' in error &&
+//       (error as any).status === 429
+//     ) {
+//       console.log('Rate limit exceeded. Check your OpenAI billing.');
+//       return res.status(429).json({ 
+//         error: 'API quota exceeded. Please try again later.' 
+//       });
+//     }
+//     // Optionally handle other errors
+//     console.error('Error in askQuestion:', error);
+//     return res.status(500).json({ error: 'Failed to process question' });
+//   }
  
+// };
+// controllers/aiController.ts
+
+import genAI from "../config/gemini"; // or default import if you used export default
+
+interface AskQuestionRequestBody {
+  question: string;
+}
+
+export const askQuestion = async (
+  req: Request<{}, {}, AskQuestionRequestBody>,
+  res: Response
+): Promise<void> => {
+  try {
+    const { question } = req.body;
+
+    if (!question) {
+      res.status(400).json({ error: "Question is required" });
+      return;
+    }
+
+    // Pick a Gemini model
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+    // Generate the answer
+    const result = await model.generateContent(question);
+    const response = result.response.text();
+
+    // Send it back to the client
+    res.json({ answer: response });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to generate answer" });
+  }
 };
+
 
 
 export const createQuiz = async (req: AuthRequest, res: Response) => {
